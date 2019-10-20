@@ -8,12 +8,14 @@ script:
 - cargo test --verbose
 - cargo build --release --verbose
 - strip target/release/caltraind
+- cp target/release/caltraind caltraind
+- tar -czf "caltraind-${TRAVIS_OS_NAME}-x86_64.tar.gz" caltraind
 addons:
   apt:
     packages: libdbus-glib-1-dev
 deploy:
   provider: releases
-  file: target/release/caltraind
+  file: caltraind-${TRAVIS_OS_NAME}-x86_64.tar.gz
   on:
     tags: true
   edge: true
