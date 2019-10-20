@@ -1,0 +1,75 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialOrd, Ord, Eq, PartialEq, Debug)]
+pub enum Station {
+    SanFrancisco,
+    TwentySecondStreet,
+    Bayshore,
+    SouthSanFrancisco,
+    SanBruno,
+    MillbraeTransitCenter,
+    Broadway,
+    Burlingame,
+    SanMateo,
+    HaywardPark,
+    Hillsdale,
+    Belmont,
+    SanCarlos,
+    RedwoodCity,
+    Atherton,
+    MenloPark,
+    PaloAlto,
+    CaliforniaAve,
+    SanAntonio,
+    MountainView,
+    Sunnyvale,
+    Lawrence,
+    SantaClara,
+    CollegePark,
+    SanJoseDiridon,
+    Tamien,
+    Capitol,
+    BlossomHill,
+    MorganHill,
+    SanMartin,
+    Gilroy,
+}
+
+impl Station {
+    pub fn get_url(&self) -> &'static str {
+        use Station::*;
+        match self {
+            SanFrancisco => "http://www.caltrain.com/schedules/realtime/stations/sanfranciscostation-mobile.html",
+            TwentySecondStreet => "http://www.caltrain.com/schedules/realtime/stations/22ndstreetstation-mobile.html",
+            Bayshore => "http://www.caltrain.com/schedules/realtime/stations/bayshorestation-mobile.html",
+            SouthSanFrancisco => "http://www.caltrain.com/schedules/realtime/stations/southsanfranciscostation-mobile.html",
+            SanBruno => "http://www.caltrain.com/schedules/realtime/stations/sanbrunostation-mobile.html",
+            MillbraeTransitCenter => "http://www.caltrain.com/schedules/realtime/stations/millbraetransitcenter-mobile.html",
+            Broadway => "http://www.caltrain.com/schedules/realtime/stations/broadwaystation-mobile.html",
+            Burlingame => "http://www.caltrain.com/schedules/realtime/stations/burlingamestation-mobile.html",
+            SanMateo => "http://www.caltrain.com/schedules/realtime/stations/sanmateostation-mobile.html",
+            HaywardPark => "http://www.caltrain.com/schedules/realtime/stations/haywardparkstation-mobile.html",
+            Hillsdale => "http://www.caltrain.com/schedules/realtime/stations/hillsdalestation-mobile.html",
+            Belmont => "http://www.caltrain.com/schedules/realtime/stations/belmontstation-mobile.html",
+            SanCarlos => "http://www.caltrain.com/schedules/realtime/stations/sancarlosstation-mobile.html",
+            RedwoodCity => "http://www.caltrain.com/schedules/realtime/stations/redwoodcitystation-mobile.html",
+            Atherton => "http://www.caltrain.com/schedules/realtime/stations/athertonstation-mobile.html",
+            MenloPark => "http://www.caltrain.com/schedules/realtime/stations/menloparkstation-mobile.html",
+            PaloAlto => "http://www.caltrain.com/schedules/realtime/stations/paloaltostation-mobile.html",
+            CaliforniaAve => "http://www.caltrain.com/schedules/realtime/stations/californiaavestation-mobile.html",
+            SanAntonio => "http://www.caltrain.com/schedules/realtime/stations/sanantoniostation-mobile.html",
+            MountainView => "http://www.caltrain.com/schedules/realtime/stations/mountainviewstation-mobile.html",
+            Sunnyvale => "http://www.caltrain.com/schedules/realtime/stations/sunnyvalestation-mobile.html",
+            Lawrence => "http://www.caltrain.com/schedules/realtime/stations/lawrencestation-mobile.html",
+            SantaClara => "http://www.caltrain.com/schedules/realtime/stations/santaclarastation-mobile.html",
+            CollegePark => "http://www.caltrain.com/schedules/realtime/stations/collegeparkstation-mobile.html",
+            SanJoseDiridon => "http://www.caltrain.com/schedules/realtime/stations/sanjosediridonstation-mobile.html",
+            Tamien => "http://www.caltrain.com/schedules/realtime/stations/tamienstation-mobile.html",
+            Capitol => "http://www.caltrain.com/schedules/realtime/stations/capitolstation-mobile.html",
+            BlossomHill => "http://www.caltrain.com/schedules/realtime/stations/blossomhillstation-mobile.html",
+            MorganHill => "http://www.caltrain.com/schedules/realtime/stations/morganhillstation-mobile.html",
+            SanMartin => "http://www.caltrain.com/schedules/realtime/stations/sanmartinstation-mobile.html",
+            Gilroy => "http://www.caltrain.com/schedules/realtime/stations/gilroystation-mobile.html"
+        }
+    }
+}

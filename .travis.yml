@@ -1,0 +1,21 @@
+language: rust
+rust:
+- beta
+os:
+- linux
+- osx
+script:
+- cargo test --verbose
+- cargo build --release --verbose
+- strip target/release/caltraind
+addons:
+  apt:
+    packages: libdbus-glib-1-dev
+deploy:
+  provider: releases
+  file: target/release/caltraind
+  on:
+    tags: true
+  edge: true
+  api_key:
+    secure: MxKwETnxPj0xQ6HRRbGgwntRIeEXFCsD/z4K8hswe2bM5OZflYB1EQsTxVvcks+npeu99UTxjPCRWk4nwEGnnhseBno7QHuU4TvJKvURt6dbSEjA1XY5qvWxQP1ExnmxHIkNq1knlh66mnK+tR+PUfO2Z6R+S2bcEYOQWQq6YaVqqXSWeWHDtKLBB8jbx4NjfL5Y/QOP7NZALxVU63liqLG2nomhBnbk1jRMWKDGZWdKDLeIfgJDxlm3mLorp/cRt/30ToVLlSekq0jOPa4qG/2YSXflNehkcnEC0bd41R6Hm7OzWd+At6TjF33cW4kGC9DpM57dI5wRHUEz3m8WgUVvlCdqMMutn+A+KtmxdI4msTRd5UD5BTm6I1QEWevwm5I/GyF2s00dQWSwCsBbL9tiG8pbsi35XVAy7n/Afzonafjf46fiVeUyAun57Mzj8zv5qMvGnKGC2MLPaHrMZXOyOL33R4HM1Z7ilCfCbuK39ecq/XoS2eZNPwo6e4izaK05xCzKKhhIRqR3H0/sZrKGq5hCjFnXJytr9HY5lXGmMQN2DrpbBsXvRMGOWemX2N0vEndl6kohncy3Br9OAVV3rD+hGGoNNott1gaNn11nOU2jiOsMvv85txEidd67FhNYsrh/9pfUMiEPSspv9phBCn8+wH8qa0wrUVmB0+8=
