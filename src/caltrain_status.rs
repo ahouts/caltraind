@@ -94,13 +94,27 @@ impl CaltrainStatus {
     }
 
     pub fn from_html<R: Read>(mut text: R) -> Result<CaltrainStatus, Error> {
-        let mut train_id = None;
-        let mut train_type = None;
-        let mut time_till_arrival = None;
-        let mut last_text = None;
-        let mut current_table_no = 0;
-        let mut southbound = vec![];
-        let mut northbound = vec![];
+        struct WalkerState {
+            train_id: Option<String>,
+            train_type: Option<String>,
+            time_till_departure: Option<String>,
+            last_text: Option<String>,
+            current_table_no: i32,
+            last_read_class: Option<LastReadClass>,
+            northbound: Vec<IncomingTrain>,
+            southbound: Vec<IncomingTrain>,
+        }
+
+        let mut state = WalkerState {
+            train_id: None,
+            train_type: None,
+            time_till_departure: None,
+            last_text: None,
+            current_table_no: 0,
+            last_read_class: None,
+            southbound: vec![],
+            northbound: vec![],
+        };
 
         #[derive(Clone, Copy)]
         enum LastReadClass {
@@ -110,8 +124,6 @@ impl CaltrainStatus {
         }
 
         use LastReadClass::*;
-
-        let mut last_read_class = None;
 
         let dom = parse_document(RcDom::default(), Default::default())
             .from_utf8()
@@ -128,17 +140,7 @@ impl CaltrainStatus {
             Ok(IncomingTrain::new(tid, ttype, min_till_arrival))
         }
 
-        fn walk(
-            handle: &Handle,
-            last_read_class: &mut Option<LastReadClass>,
-            last_text: &mut Option<String>,
-            mut train_id: &mut Option<String>,
-            mut train_type: &mut Option<String>,
-            mut time_till_arrival: &mut Option<String>,
-            current_table_no: &mut i32,
-            southbound: &mut Vec<IncomingTrain>,
-            northbound: &mut Vec<IncomingTrain>,
-        ) -> Result<(), Error> {
+        fn walk(handle: &Handle, state: &mut WalkerState) -> Result<(), Error> {
             let node = handle;
 
             match node.data {
@@ -147,87 +149,69 @@ impl CaltrainStatus {
                         if &attr.name.local == "class" {
                             let val = attr.value.as_bytes();
                             if val.ends_with(b"ipf-st-ip-trains-subtable") {
-                                *current_table_no += 1;
+                                state.current_table_no += 1;
                             }
                             if val.ends_with(b"ipf-st-ip-trains-subtable-td-id") {
-                                *last_read_class = Some(TrainId);
+                                state.last_read_class = Some(TrainId);
                             }
                             if val.ends_with(b"ipf-st-ip-trains-subtable-td-type") {
-                                *last_read_class = Some(TrainType);
+                                state.last_read_class = Some(TrainType);
                             }
                             if val.ends_with(b"ipf-st-ip-trains-subtable-td-arrivaltime") {
-                                *last_read_class = Some(TimeTillArrival);
+                                state.last_read_class = Some(TimeTillArrival);
                             }
                         }
                     }
                 }
                 NodeData::Text { ref contents } => {
-                    *last_text = Some(contents.borrow().to_string());
+                    state.last_text = Some(contents.borrow().to_string());
                 }
                 _ => (),
             }
             for child in node.children.borrow().iter() {
-                walk(
-                    child,
-                    last_read_class,
-                    last_text,
-                    train_id,
-                    train_type,
-                    time_till_arrival,
-                    current_table_no,
-                    southbound,
-                    northbound,
-                )?;
+                walk(child, state)?;
             }
-            let res = match (&last_read_class, &last_text) {
+            let res = match (&state.last_read_class, &state.last_text) {
                 (Some(ttype), Some(text)) => {
                     match ttype {
-                        TrainId => *train_id = Some(text.clone()),
-                        TrainType => *train_type = Some(text.clone()),
-                        TimeTillArrival => *time_till_arrival = Some(text.clone()),
+                        TrainId => state.train_id = Some(text.clone()),
+                        TrainType => state.train_type = Some(text.clone()),
+                        TimeTillArrival => state.time_till_departure = Some(text.clone()),
                     }
                     (None, None)
                 }
-                (a, b) => (**a, (b.as_ref().map(|s| s.clone())).clone()),
+                (a, b) => (*a, b.as_ref().cloned()),
             };
-            *last_read_class = res.0;
-            *last_text = res.1;
+            state.last_read_class = res.0;
+            state.last_text = res.1;
             let mut should_wipe = false;
-            match (&mut train_id, &mut train_type, &mut time_till_arrival) {
-                (Some(tid), Some(ttype), Some(tta)) => {
-                    if *current_table_no == 1 {
-                        southbound.push(make_incoming_train(tid, ttype, tta)?);
-                    }
-                    if *current_table_no == 2 {
-                        northbound.push(make_incoming_train(tid, ttype, tta)?);
-                    }
-                    should_wipe = true;
+            if let (Some(tid), Some(ttype), Some(tta)) = (
+                &mut state.train_id,
+                &mut state.train_type,
+                &mut state.time_till_departure,
+            ) {
+                if state.current_table_no == 1 {
+                    state.southbound.push(make_incoming_train(tid, ttype, tta)?);
                 }
-                _ => (),
+                if state.current_table_no == 2 {
+                    state.northbound.push(make_incoming_train(tid, ttype, tta)?);
+                }
+                should_wipe = true;
             }
+
             if should_wipe {
-                *train_id = None;
-                *train_type = None;
-                *time_till_arrival = None;
+                state.train_id = None;
+                state.train_type = None;
+                state.time_till_departure = None;
             }
             Ok(())
         }
 
-        walk(
-            &dom.document,
-            &mut last_read_class,
-            &mut last_text,
-            &mut train_id,
-            &mut train_type,
-            &mut time_till_arrival,
-            &mut current_table_no,
-            &mut southbound,
-            &mut northbound,
-        )?;
+        walk(&dom.document, &mut state)?;
 
         Ok(CaltrainStatus {
-            northbound,
-            southbound,
+            northbound: state.northbound,
+            southbound: state.southbound,
         })
     }
 }

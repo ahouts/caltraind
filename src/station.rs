@@ -36,7 +36,7 @@ pub enum Station {
 }
 
 impl Station {
-    pub fn get_url(&self) -> &'static str {
+    pub fn get_url(self) -> &'static str {
         use Station::*;
         match self {
             SanFrancisco => "http://www.caltrain.com/schedules/realtime/stations/sanfranciscostation-mobile.html",

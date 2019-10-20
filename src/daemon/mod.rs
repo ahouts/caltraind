@@ -15,6 +15,7 @@ use crate::cfg::{CALTRAIND_PATH, PID_PATH, SOCKET_PATH, STDERR_PATH, STDOUT_PATH
 use crate::daemon::cstatus_fetcher::CStatusFetcher;
 use crate::daemon::notifier::Notifier;
 use crate::station::Station;
+use chrono::NaiveTime;
 
 mod cstatus_fetcher;
 mod notifier;
@@ -51,6 +52,7 @@ pub fn start(
     direction: Direction,
     refresh_rate: Duration,
     notify_at: Vec<u16>,
+    notify_after: Option<NaiveTime>,
 ) -> Result<(), Box<dyn Error>> {
     daemonize()?;
 
@@ -58,10 +60,10 @@ pub fn start(
 
     CStatusFetcher::new(station, refresh_rate).start();
     for n in notify_at {
-        Notifier::new(train_types.clone(), n, direction).start();
+        Notifier::new(train_types.clone(), n, direction, notify_after).start();
     }
 
-    HttpServer::new(|| App::new())
+    HttpServer::new(App::new)
         .workers(n_threads)
         .bind_uds(SOCKET_PATH.as_path())?
         .start();

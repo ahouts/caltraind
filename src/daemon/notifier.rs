@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use actix::prelude::*;
 use actix_broker::BrokerSubscribe;
-use chrono::Local;
+use chrono::{Local, NaiveTime};
 use notify_rust::{Notification, Timeout};
 use time::Duration;
 
@@ -14,15 +14,22 @@ pub struct Notifier {
     notify_at: u16,
     notify_types: BTreeSet<TrainType>,
     direction: Direction,
+    notify_after: Option<NaiveTime>,
 }
 
 impl Notifier {
-    pub fn new(notify_types: BTreeSet<TrainType>, notify_at: u16, direction: Direction) -> Self {
+    pub fn new(
+        notify_types: BTreeSet<TrainType>,
+        notify_at: u16,
+        direction: Direction,
+        notify_after: Option<NaiveTime>,
+    ) -> Self {
         Notifier {
             notify_at,
             notify_types,
             trains_notified: BTreeSet::new(),
             direction,
+            notify_after,
         }
     }
 }
@@ -39,6 +46,12 @@ impl Handler<CaltrainStatus> for Notifier {
     type Result = ();
 
     fn handle(&mut self, status: CaltrainStatus, _: &mut Self::Context) -> Self::Result {
+        if let Some(t) = self.notify_after {
+            if Local::now().naive_local().time() < t {
+                return;
+            }
+        }
+
         let (northbound, southbound) = status.get_status();
 
         let incoming_trains = if self.direction == Northbound {
@@ -79,7 +92,7 @@ impl Handler<CaltrainStatus> for Notifier {
 
         self.trains_notified
             .iter()
-            .map(|id| *id)
+            .copied()
             .filter(|notified| {
                 incoming_trains
                     .iter()

@@ -6,6 +6,7 @@ use clap::{crate_authors, crate_description, crate_version, App, AppSettings, Ar
 use crate::caltrain_status::{Direction, TrainType};
 use crate::daemon::close_existing;
 use crate::station::Station;
+use chrono::NaiveTime;
 
 mod caltrain_status;
 pub(crate) mod cfg;
@@ -63,7 +64,12 @@ fn main() {
                 .takes_value(true)
                 .multiple(true)
                 .required(true)
-                .help("number of minutes before train departure to notify")))
+                .help("number of minutes before train departure to notify"))
+            .arg(Arg::with_name("NOTIFY_AFTER")
+                .short("A")
+                .long("notify-after")
+                .takes_value(true)
+                .help("only display notifications after this time, 24h format (eg. 14:50)")))
         .subcommand(SubCommand::with_name("kill")
             .about("kill existing caltraind instance"))
         .setting(AppSettings::SubcommandRequired)
@@ -85,7 +91,7 @@ fn main() {
     let train_types: BTreeSet<TrainType> = matches
         .values_of("TYPES")
         .unwrap()
-        .map(|t| t.split_terminator(","))
+        .map(|t| t.split_terminator(','))
         .flatten()
         .map(|t| serde_yaml::from_str(t).expect("error parsing train type"))
         .collect();
@@ -110,6 +116,10 @@ fn main() {
         .map(|n| n.parse().expect("invalid notification time"))
         .collect();
 
+    let notify_after = matches
+        .value_of("NOTIFY_AFTER")
+        .map(|s| NaiveTime::parse_from_str(s, "%k:%M").expect("invalid notify after time"));
+
     daemon::start(
         n_threads,
         train_types,
@@ -117,6 +127,7 @@ fn main() {
         direction,
         refresh_rate,
         notify_at,
+        notify_after,
     )
     .unwrap();
 }
