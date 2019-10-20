@@ -2,7 +2,9 @@ use std::collections::BTreeSet;
 
 use actix::prelude::*;
 use actix_broker::BrokerSubscribe;
+use chrono::Local;
 use notify_rust::{Notification, Timeout};
+use time::Duration;
 
 use crate::caltrain_status::Direction::Northbound;
 use crate::caltrain_status::{CaltrainStatus, Direction, TrainType};
@@ -59,14 +61,16 @@ impl Handler<CaltrainStatus> for Notifier {
                 .summary("Caltrain")
                 .body(
                     format!(
-                        "{} train {} is leaving in {} minutes!",
+                        "{} train {} is departing in {} minutes at {}!",
                         train.get_train_type(),
                         train.get_id(),
-                        train.get_min_till_departure()
+                        train.get_min_till_departure(),
+                        (Local::now() + Duration::minutes(train.get_min_till_departure() as i64))
+                            .format("%l:%M%p")
                     )
                     .as_str(),
                 )
-                .timeout(Timeout::Milliseconds(10_000))
+                .timeout(Timeout::Never)
                 .show();
             if let Err(e) = notification_result {
                 eprintln!("error creating notification: {}", e);
