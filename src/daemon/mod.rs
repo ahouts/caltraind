@@ -52,9 +52,9 @@ pub fn start(
     refresh_rate: Duration,
     notify_at: Vec<u16>,
 ) -> Result<(), Box<dyn Error>> {
-    let sys = System::new("caltraind");
-
     daemonize()?;
+
+    let sys = System::new("caltraind");
 
     CStatusFetcher::new(station, refresh_rate).start();
     for n in notify_at {
