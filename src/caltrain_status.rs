@@ -1,14 +1,9 @@
 use std::fmt;
-use std::io::Read;
 
 use actix::prelude::*;
-use html5ever::{
-    parse_document,
-    rcdom::{Handle, NodeData, RcDom},
-    tendril::TendrilSink,
-};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use scraper::{ElementRef, Html};
 use serde::{Deserialize, Serialize};
 
 use crate::caltrain_status::Error::{HtmlError, InvalidIntError};
@@ -93,7 +88,7 @@ impl CaltrainStatus {
         (self.northbound.as_ref(), self.southbound.as_ref())
     }
 
-    pub fn from_html<R: Read>(mut text: R) -> Result<CaltrainStatus, Error> {
+    pub fn from_html<T: AsRef<str>>(text: T) -> Result<CaltrainStatus, Error> {
         struct WalkerState {
             train_id: Option<String>,
             train_type: Option<String>,
@@ -125,9 +120,7 @@ impl CaltrainStatus {
 
         use LastReadClass::*;
 
-        let dom = parse_document(RcDom::default(), Default::default())
-            .from_utf8()
-            .read_from(&mut text)?;
+        let dom = Html::parse_document(text.as_ref());
 
         fn make_incoming_train(tid: &str, ttype: &str, tta: &str) -> Result<IncomingTrain, Error> {
             let tid = tid.parse::<u16>()?;
@@ -140,36 +133,33 @@ impl CaltrainStatus {
             Ok(IncomingTrain::new(tid, ttype, min_till_arrival))
         }
 
-        fn walk(handle: &Handle, state: &mut WalkerState) -> Result<(), Error> {
-            let node = handle;
-
-            match node.data {
-                NodeData::Element { ref attrs, .. } => {
-                    for attr in attrs.borrow().iter() {
-                        if &attr.name.local == "class" {
-                            let val = attr.value.as_bytes();
-                            if val.ends_with(b"ipf-st-ip-trains-subtable") {
-                                state.current_table_no += 1;
-                            }
-                            if val.ends_with(b"ipf-st-ip-trains-subtable-td-id") {
-                                state.last_read_class = Some(TrainId);
-                            }
-                            if val.ends_with(b"ipf-st-ip-trains-subtable-td-type") {
-                                state.last_read_class = Some(TrainType);
-                            }
-                            if val.ends_with(b"ipf-st-ip-trains-subtable-td-arrivaltime") {
-                                state.last_read_class = Some(TimeTillArrival);
-                            }
-                        }
+        fn walk(node: &ElementRef, state: &mut WalkerState) -> Result<(), Error> {
+            for attr in &node.value().attrs {
+                if &attr.0.local == "class" {
+                    let val = attr.1.as_bytes();
+                    if val.ends_with(b"ipf-st-ip-trains-subtable") {
+                        state.current_table_no += 1;
+                    }
+                    if val.ends_with(b"ipf-st-ip-trains-subtable-td-id") {
+                        state.last_read_class = Some(TrainId);
+                    }
+                    if val.ends_with(b"ipf-st-ip-trains-subtable-td-type") {
+                        state.last_read_class = Some(TrainType);
+                    }
+                    if val.ends_with(b"ipf-st-ip-trains-subtable-td-arrivaltime") {
+                        state.last_read_class = Some(TimeTillArrival);
                     }
                 }
-                NodeData::Text { ref contents } => {
-                    state.last_text = Some(contents.borrow().to_string());
-                }
-                _ => (),
             }
-            for child in node.children.borrow().iter() {
-                walk(child, state)?;
+
+            for child in node.children() {
+                if let Some(e) = ElementRef::wrap(child) {
+                    walk(&e, state)?;
+                } else {
+                    if let Some(t) = child.value().as_text() {
+                        state.last_text = Some(t.text.to_string());
+                    }
+                }
             }
             let res = match (&state.last_read_class, &state.last_text) {
                 (Some(ttype), Some(text)) => {
@@ -207,7 +197,7 @@ impl CaltrainStatus {
             Ok(())
         }
 
-        walk(&dom.document, &mut state)?;
+        walk(&dom.root_element(), &mut state)?;
 
         Ok(CaltrainStatus {
             northbound: state.northbound,
@@ -251,14 +241,12 @@ impl From<std::num::ParseIntError> for Error {
 
 #[cfg(test)]
 mod test {
-    use std::io::Cursor;
-
     use super::*;
 
     #[test]
     fn from_html() {
         assert_eq!(
-            CaltrainStatus::from_html(Cursor::new(include_str!("test.html"))).unwrap(),
+            CaltrainStatus::from_html(include_str!("test.html")).unwrap(),
             CaltrainStatus {
                 northbound: vec![
                     IncomingTrain {
@@ -301,7 +289,7 @@ mod test {
     #[test]
     fn from_html_no_southbound() {
         assert_eq!(
-            CaltrainStatus::from_html(Cursor::new(include_str!("test2.html"))).unwrap(),
+            CaltrainStatus::from_html(include_str!("test2.html")).unwrap(),
             CaltrainStatus {
                 northbound: vec![
                     IncomingTrain {

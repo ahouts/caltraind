@@ -1,4 +1,3 @@
-use std::io::Cursor;
 use std::time::Duration;
 
 use actix::prelude::*;
@@ -46,8 +45,7 @@ impl CStatusFetcher {
                 ));
             }
         };
-        let reader = Cursor::new(text);
-        match CaltrainStatus::from_html(reader) {
+        match CaltrainStatus::from_html(text) {
             Ok(cstatus) => Ok(cstatus),
             Err(e) => Err(format!("error parsing caltrain xml: {}", e)),
         }
