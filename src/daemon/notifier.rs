@@ -46,12 +46,6 @@ impl Handler<CaltrainStatus> for Notifier {
     type Result = ();
 
     fn handle(&mut self, status: CaltrainStatus, _: &mut Self::Context) -> Self::Result {
-        if let Some(t) = self.notify_after {
-            if Local::now().naive_local().time() < t {
-                return;
-            }
-        }
-
         let (northbound, southbound) = status.get_status();
 
         let incoming_trains = if self.direction == Northbound {
@@ -60,16 +54,32 @@ impl Handler<CaltrainStatus> for Notifier {
             southbound
         };
 
-        let mut trains_notified = vec![];
+        let mut tmp = BTreeSet::new();
+        std::mem::swap(&mut self.trains_notified, &mut tmp);
+        self.trains_notified = tmp
+            .into_iter()
+            .filter(|notified| {
+                incoming_trains
+                    .iter()
+                    .any(|incoming| incoming.get_id() == *notified)
+            })
+            .collect();
 
-        let trains_to_notify = incoming_trains
+        if let Some(t) = self.notify_after {
+            if Local::now().naive_local().time() < t {
+                return;
+            }
+        }
+
+        let trains_to_notify: Vec<_> = incoming_trains
             .iter()
             .filter(|incoming_train| self.notify_types.contains(&incoming_train.get_train_type()))
             .filter(|incoming_train| incoming_train.get_min_till_departure() <= self.notify_at)
-            .filter(|incoming_train| !self.trains_notified.contains(&incoming_train.get_id()));
+            .filter(|incoming_train| !self.trains_notified.contains(&incoming_train.get_id()))
+            .collect();
 
-        for train in trains_to_notify {
-            trains_notified.push(train.get_id());
+        for train in trains_to_notify.into_iter() {
+            self.trains_notified.insert(train.get_id());
             let notification_result = Notification::new()
                 .summary("Caltrain")
                 .body(
@@ -89,17 +99,5 @@ impl Handler<CaltrainStatus> for Notifier {
                 eprintln!("error creating notification: {}", e);
             }
         }
-
-        self.trains_notified
-            .iter()
-            .copied()
-            .filter(|notified| {
-                incoming_trains
-                    .iter()
-                    .any(|incoming| incoming.get_id() == *notified)
-            })
-            .for_each(|id| trains_notified.push(id));
-
-        self.trains_notified = trains_notified.into_iter().collect();
     }
 }
