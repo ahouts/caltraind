@@ -56,7 +56,7 @@ fn main() {
                 .short("r")
                 .long("refresh-rate")
                 .takes_value(true)
-                .default_value("20")
+                .default_value("60")
                 .help("how often in seconds to query caltrain for updates"))
             .arg(Arg::with_name("NOTIFY_AT")
                 .short("n")
@@ -69,9 +69,10 @@ fn main() {
                 .short("A")
                 .long("notify-after")
                 .takes_value(true)
-                .help("only display notifications after this time, 24h format (eg. 14:50)")))
+                .help("only display notifications after this time, 24h format (eg. 14:50)"))
+            .about("start the notifier daemon"))
         .subcommand(SubCommand::with_name("kill")
-            .about("kill existing caltraind instance"))
+            .about("kill existing daemon instance"))
         .setting(AppSettings::SubcommandRequired)
         .get_matches();
 
