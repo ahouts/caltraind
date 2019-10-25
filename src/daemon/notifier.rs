@@ -7,7 +7,8 @@ use notify_rust::{Notification, Timeout};
 use time::Duration;
 
 use crate::caltrain_status::Direction::Northbound;
-use crate::caltrain_status::{CaltrainStatus, Direction, TrainType};
+use crate::caltrain_status::{CaltrainStatus, Direction, IncomingTrain, TrainType};
+use std::ops::Add;
 
 pub struct Notifier {
     trains_notified: BTreeSet<u16>,
@@ -65,14 +66,18 @@ impl Handler<CaltrainStatus> for Notifier {
             })
             .collect();
 
+        let mut incoming_trains: Box<dyn Iterator<Item = &IncomingTrain>> =
+            Box::new(incoming_trains.into_iter());
+
         if let Some(t) = self.notify_after {
-            if Local::now().naive_local().time() < t {
-                return;
-            }
+            let now = Local::now().naive_local().time();
+            incoming_trains = Box::new(incoming_trains.filter(move |train| {
+                let time_till_departure = Duration::minutes(train.get_min_till_departure() as i64);
+                now.add(time_till_departure) >= t
+            }));
         }
 
         let trains_to_notify: Vec<_> = incoming_trains
-            .iter()
             .filter(|incoming_train| self.notify_types.contains(&incoming_train.get_train_type()))
             .filter(|incoming_train| incoming_train.get_min_till_departure() <= self.notify_at)
             .filter(|incoming_train| !self.trains_notified.contains(&incoming_train.get_id()))
