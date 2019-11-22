@@ -1,6 +1,6 @@
 [package]
 name = "caltraind"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Andrew Houts <ahouts4@gmail.com>"]
 description = "notification generator for caltrain departures"
 license = "Apache-2.0 OR MIT"

@@ -457,7 +457,7 @@ dependencies = [
 
 [[package]]
 name = "caltraind"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "actix 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-broker 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
